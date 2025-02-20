@@ -1,0 +1,106 @@
+#########################################
+                                        #
+# Econométrie Dossier de TD             #
+# Groupe 25                             #
+                                        #
+#########################################
+
+
+# Il s'agit de réaliser une application empirique de la courbe environnementale de Kuznets 
+# (EKC) on cherche à expliquer une variable de dégradation environnementale en fonction d'une 
+# variable de développement économique. Ici les variables concernées sont les émissions de Gaz à effet de serre
+# (GES) par habitants et le PIB par habitants de la Chine sur la période 1990-2020.
+
+     #. 1 Etapes préliminaires.  #
+
+# Avant tout il faut commencer par istaller les packages nécessaires 
+
+install.packages("ggplot2")
+install.packages("dplyr")
+install.packages("readxl")
+install.packages("stargazer")
+
+# Il faut maintenant charger les packages 
+
+library("ggplot2")
+library("readxl")
+library("dplyr")
+
+
+    #.  2 Chargement des données et visualisation. #
+
+# Je charge maintenant les données que j'ai préalablement choisis et préparées sur excel 
+data <- read_excel("/Users/ugocorbari/Desktop/Licence (cours)/L3/Semestre 5/Econométrie/Data.GDP-GES.xlsx")
+View(data)
+summary(data)
+
+
+# Ces données représentent la variation d'emission de GES et la variation de PIB par habitants en Chine de 1990 à 2020
+# toutes les données présentent sur le tableau proviennent de https://ourworldindata.org/co2/country/china
+
+# par soucis de lisibilité nous notteront 
+
+GDPpcap <-data$PIB.Habitants    # ici le pib/habitants est exprimmé en US$ de 2015 constants 
+GESpcap <-data$GES.Habitants     # les emissions de ges par habitants sont exprimmées en Tonnes
+année <- data$Year
+
+# Nous traçons des courbes afin d'observer les tendences des variables dans le temps
+
+ggplot(data, aes(x = année, y = GDPpcap)) +
+  geom_line(size = 1, colour = "red") +
+  labs(x = "Années", 
+       y = "PIB/hab", 
+       title = "Evolution du PIB/habitants dans le temps pour la Chine")
+
+
+ggplot(data, aes(x = année, y = GESpcap)) +
+  geom_line(size = 1, colour = "green") +
+  labs(x = "Années", 
+       y = "GES/hab", 
+       title = "Evolution des émissions de GES/habitants dans le temps pour la Chine")
+
+
+
+# Nous lions les deux variables importantes entre elles afin de les viualiser
+
+ggplot(data, aes(x = GDPpcap, y = GESpcap)) +
+  geom_point( ) +
+  labs(title = "Relation entre les émissions de GES/habitants et l'évolution du PIB/habitants",
+       x = "PIB/habitants",
+       y = "Emission de GES/habitants (Tonnes)")
+
+
+
+ # on remarque très vite que la relation entre le PIB/habitants et l'emission de GES/habitants est une relation positive
+ # comme nous pouvons le verifier :
+cov(GDPpcap,GESpcap)  # supérieur à 0
+cor(GDPpcap, GESpcap)
+
+
+    #.  3 Mise en place et résolution du modèles.  #
+
+
+# La courbe environnementale de Kuznets se veut en forme de U inversé, c'est pourquoi
+# nous utiliserons un modèle quadratique du type y = beta_0 + beta_1*x + beta_2*x^2 + e
+
+Model1 <- lm(GESpcap ~ GDPpcap + I(GDPpcap^2), data = data )
+summary(Model1)
+
+# Nous cherchons à obtenir l'erreur résiduelle à partir du modèle
+
+e <- summary(Model1)$sigma
+cat("Residual Standard Error:", e, "\n")
+
+
+    #. 4 Courbe de regression .  #
+
+
+new_data <- data.frame(GDPpcap = seq(min(GDPpcap), max(GDPpcap), length.out = 100))
+predicted_values <- predict(Model1, newdata = new_data)
+
+# Création du graphique 
+ggplot(data, aes(x = GDPpcap, y = GESpcap)) +
+  geom_point() +  # Ajouter les points de données
+  geom_line(data = data.frame(GDPpcap = new_data$GDPpcap, GESpcap = predicted_values), 
+            aes(x = GDPpcap, y = predicted_values), color = "red") +  # Ajouter la ligne de modèle
+  labs(title = "Courbe de modèle quadratique - U inversé", x = "GDP par habitant", y = "Émissions de GES par habitant")
